@@ -3,18 +3,18 @@
  * @package     Joomla.Site
  * @subpackage  com_content
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
+use Joomla\Registry\Registry;
+
 /**
  * Content Component Article Model
  *
- * @package     Joomla.Site
- * @subpackage  com_content
- * @since       1.5
+ * @since  1.5
  */
 class ContentModelArticle extends JModelItem
 {
@@ -66,10 +66,12 @@ class ContentModelArticle extends JModelItem
 	 *
 	 * @param   integer  $pk  The id of the article.
 	 *
-	 * @return  mixed  Menu item data object on success, false on failure.
+	 * @return  object|boolean|JException  Menu item data object on success, boolean false or JException instance on error
 	 */
 	public function getItem($pk = null)
 	{
+		$user = JFactory::getUser();
+
 		$pk = (!empty($pk)) ? $pk : (int) $this->getState('article.id');
 
 		if ($this->_item === null)
@@ -107,21 +109,6 @@ class ContentModelArticle extends JModelItem
 				$query->select('u.name AS author')
 					->join('LEFT', '#__users AS u on u.id = a.created_by');
 
-				// Get contact id
-				$subQuery = $db->getQuery(true)
-					->select('MAX(contact.id) AS id')
-					->from('#__contact_details AS contact')
-					->where('contact.published = 1')
-					->where('contact.user_id = a.created_by');
-
-					// Filter by language
-					if ($this->getState('filter.language'))
-					{
-						$subQuery->where('(contact.language in (' . $db->quote(JFactory::getLanguage()->getTag()) . ',' . $db->quote('*') . ') OR contact.language IS NULL)');
-					}
-
-				$query->select('(' . $subQuery . ') as contactid');
-
 				// Filter by language
 				if ($this->getState('filter.language'))
 				{
@@ -138,14 +125,17 @@ class ContentModelArticle extends JModelItem
 
 					->where('a.id = ' . (int) $pk);
 
-				// Filter by start and end dates.
-				$nullDate = $db->quote($db->getNullDate());
-				$date = JFactory::getDate();
+				if ((!$user->authorise('core.edit.state', 'com_content')) && (!$user->authorise('core.edit', 'com_content')))
+				{
+					// Filter by start and end dates.
+					$nullDate = $db->quote($db->getNullDate());
+					$date = JFactory::getDate();
 
-				$nowDate = $db->quote($date->toSql());
+					$nowDate = $db->quote($date->toSql());
 
-				$query->where('(a.publish_up = ' . $nullDate . ' OR a.publish_up <= ' . $nowDate . ')')
-					->where('(a.publish_down = ' . $nullDate . ' OR a.publish_down >= ' . $nowDate . ')');
+					$query->where('(a.publish_up = ' . $nullDate . ' OR a.publish_up <= ' . $nowDate . ')')
+						->where('(a.publish_down = ' . $nullDate . ' OR a.publish_down >= ' . $nowDate . ')');
+				}
 
 				// Join to check for category published state in parent categories up the tree
 				// If all categories are published, badcats.id will be null, and we just use the article state
@@ -174,24 +164,18 @@ class ContentModelArticle extends JModelItem
 				}
 
 				// Check for published state if filter set.
-				if (((is_numeric($published)) || (is_numeric($archived))) && (($data->state != $published) && ($data->state != $archived)))
+				if ((is_numeric($published) || is_numeric($archived)) && (($data->state != $published) && ($data->state != $archived)))
 				{
 					return JError::raiseError(404, JText::_('COM_CONTENT_ERROR_ARTICLE_NOT_FOUND'));
 				}
 
 				// Convert parameter fields to objects.
-				$registry = new JRegistry;
-				$registry->loadString($data->attribs);
+				$registry = new Registry($data->attribs);
 
 				$data->params = clone $this->getState('params');
 				$data->params->merge($registry);
 
-				$registry = new JRegistry;
-				$registry->loadString($data->metadata);
-				$data->metadata = $registry;
-
-				// Compute selected asset permissions.
-				$user = JFactory::getUser();
+				$data->metadata = new Registry($data->metadata);
 
 				// Technically guest could edit an article, but lets not check that to improve performance a little.
 				if (!$user->get('guest'))
@@ -297,7 +281,7 @@ class ContentModelArticle extends JModelItem
 			$userIP = $_SERVER['REMOTE_ADDR'];
 
 			// Initialize variables.
-			$db    = JFactory::getDbo();
+			$db    = $this->getDbo();
 			$query = $db->getQuery(true);
 
 			// Create the base select statement.
@@ -307,12 +291,15 @@ class ContentModelArticle extends JModelItem
 
 			// Set the query and load the result.
 			$db->setQuery($query);
-			$rating = $db->loadObject();
 
 			// Check for a database error.
-			if ($db->getErrorNum())
+			try
 			{
-				JError::raiseWarning(500, $db->getErrorMsg());
+				$rating = $db->loadObject();
+			}
+			catch (RuntimeException $e)
+			{
+				JError::raiseWarning(500, $e->getMessage());
 
 				return false;
 			}
@@ -343,7 +330,7 @@ class ContentModelArticle extends JModelItem
 			}
 			else
 			{
-				if ($userIP != ($rating->lastip))
+				if ($userIP != $rating->lastip)
 				{
 					$query = $db->getQuery(true);
 

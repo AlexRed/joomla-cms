@@ -3,18 +3,19 @@
  * @package     Joomla.Site
  * @subpackage  com_search
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
 defined('_JEXEC') or die;
 
+use Joomla\Registry\Registry;
+use Joomla\String\StringHelper;
+
 /**
  * HTML View class for the search component
  *
- * @package     Joomla.Site
- * @subpackage  com_search
- * @since       1.0
+ * @since  1.0
  */
 class SearchViewSearch extends JViewLegacy
 {
@@ -23,15 +24,14 @@ class SearchViewSearch extends JViewLegacy
 	 *
 	 * @param   string  $tpl  The name of the template file to parse; automatically searches through the template paths.
 	 *
-	 * @return  mixed  A string if successful, otherwise a Error object.
+	 * @return  mixed  A string if successful, otherwise an Error object.
 	 */
 	public function display($tpl = null)
 	{
-		require_once JPATH_COMPONENT_ADMINISTRATOR . '/helpers/search.php';
+		JLoader::register('SearchHelper', JPATH_COMPONENT_ADMINISTRATOR . '/helpers/search.php');
 
 		$app     = JFactory::getApplication();
 		$uri     = JUri::getInstance();
-
 		$error   = null;
 		$rows    = null;
 		$results = null;
@@ -49,10 +49,7 @@ class SearchViewSearch extends JViewLegacy
 		// Because the application sets a default page title, we need to get it right from the menu item itself
 		if (is_object($menu))
 		{
-			$menu_params = new JRegistry;
-			$menu_params->loadString($menu->params);
-
-			if (!$menu_params->get('page_title'))
+			if (!$menu->params->get('page_title'))
 			{
 				$params->set('page_title', JText::_('COM_SEARCH_SEARCH'));
 			}
@@ -64,13 +61,13 @@ class SearchViewSearch extends JViewLegacy
 
 		$title = $params->get('page_title');
 
-		if ($app->getCfg('sitename_pagetitles', 0) == 1)
+		if ($app->get('sitename_pagetitles', 0) == 1)
 		{
-			$title = JText::sprintf('JPAGETITLE', $app->getCfg('sitename'), $title);
+			$title = JText::sprintf('JPAGETITLE', $app->get('sitename'), $title);
 		}
-		elseif ($app->getCfg('sitename_pagetitles', 0) == 2)
+		elseif ($app->get('sitename_pagetitles', 0) == 2)
 		{
-			$title = JText::sprintf('JPAGETITLE', $title, $app->getCfg('sitename'));
+			$title = JText::sprintf('JPAGETITLE', $title, $app->get('sitename'));
 		}
 
 		$this->document->setTitle($title);
@@ -141,7 +138,7 @@ class SearchViewSearch extends JViewLegacy
 			$total      = $this->get('total');
 			$pagination = $this->get('pagination');
 
-			require_once JPATH_SITE . '/components/com_content/helpers/route.php';
+			JLoader::register('ContentHelperRoute', JPATH_SITE . '/components/com_content/helpers/route.php');
 
 			for ($i = 0, $count = count($results); $i < $count; $i++)
 			{
@@ -159,41 +156,115 @@ class SearchViewSearch extends JViewLegacy
 					$needle      = $searchwords[0];
 				}
 
-				$row         = SearchHelper::prepareSearchContent($row, $needle);
-				$searchwords = array_values(array_unique($searchwords));
-				$srow        = strtolower(SearchHelper::remove_accents($row));
-				$hl1         = '<span class="highlight">';
-				$hl2         = '</span>';
-				$cnt         = 0;
+				$row          = SearchHelper::prepareSearchContent($row, $needle);
+				$searchwords  = array_values(array_unique($searchwords));
+				$srow         = strtolower(SearchHelper::remove_accents($row));
+				$hl1          = '<span class="highlight">';
+				$hl2          = '</span>';
+				$posCollector = array();
+				$mbString     = extension_loaded('mbstring');
+
+				if ($mbString)
+				{
+					// E.g. german umlauts like ä are converted to ae and so
+					// $pos calculated with $srow doesn't match for $row
+					$correctPos     = (mb_strlen($srow) > mb_strlen($row));
+					$highlighterLen = mb_strlen($hl1 . $hl2);
+				}
+				else
+				{
+					// E.g. german umlauts like ä are converted to ae and so
+					// $pos calculated with $srow desn't match for $row
+					$correctPos     = (StringHelper::strlen($srow) > StringHelper::strlen($row));
+					$highlighterLen = StringHelper::strlen($hl1 . $hl2);
+				}
 
 				foreach ($searchwords as $hlword)
 				{
-					if (extension_loaded('mbstring'))
+					if ($mbString)
 					{
 						if (($pos = mb_strpos($srow, strtolower(SearchHelper::remove_accents($hlword)))) !== false)
 						{
-							$pos += $cnt * mb_strlen($hl1 . $hl2);
-							$cnt++;
-
-							// iconv transliterates '€' to 'EUR'
+							// Iconv transliterates '€' to 'EUR'
 							// TODO: add other expanding translations?
 							$eur_compensation = $pos > 0 ? substr_count($row, "\xE2\x82\xAC", 0, $pos) * 2 : 0;
-							$pos -= $eur_compensation;
-							$row = mb_substr($row, 0, $pos) . $hl1 . mb_substr($row, $pos, mb_strlen($hlword)) . $hl2 . mb_substr($row, $pos + mb_strlen($hlword));
+							$pos              -= $eur_compensation;
+
+							if ($correctPos)
+							{
+								// Calculate necessary corrections from 0 to current $pos
+								$ChkRow     = mb_substr($row, 0, $pos);
+								$sChkRowLen = mb_strlen(strtolower(SearchHelper::remove_accents($ChkRow)));
+								$ChkRowLen  = mb_strlen($ChkRow);
+
+								// Correct $pos
+								$pos -= ($sChkRowLen - $ChkRowLen);
+							}
+
+							// Collect pos and searchword
+							$posCollector[$pos] = $hlword;
 						}
 					}
 					else
 					{
-						if (($pos = JString::strpos($srow, strtolower(SearchHelper::remove_accents($hlword)))) !== false)
+						if (($pos = StringHelper::strpos($srow, strtolower(SearchHelper::remove_accents($hlword)))) !== false)
 						{
-							$pos += $cnt * JString::strlen($hl1 . $hl2);
-							$cnt++;
-
-							// iconv transliterates '€' to 'EUR'
+							// Iconv transliterates '€' to 'EUR'
 							// TODO: add other expanding translations?
 							$eur_compensation = $pos > 0 ? substr_count($row, "\xE2\x82\xAC", 0, $pos) * 2 : 0;
-							$pos -= $eur_compensation;
-							$row = JString::substr($row, 0, $pos) . $hl1 . JString::substr($row, $pos, JString::strlen($hlword)) . $hl2 . JString::substr($row, $pos + JString::strlen($hlword));
+							$pos              -= $eur_compensation;
+
+							if ($correctPos)
+							{
+								// Calculate necessary corrections from 0 to current $pos
+								$ChkRow     = StringHelper::substr($row, 0, $pos);
+								$sChkRowLen = StringHelper::strlen(strtolower(SearchHelper::remove_accents($ChkRow)));
+								$ChkRowLen  = StringHelper::strlen($ChkRow);
+
+								// Correct $pos
+								$pos -= ($sChkRowLen - $ChkRowLen);
+							}
+
+							// Collect pos and searchword
+							$posCollector[$pos] = $hlword;
+						}
+					}
+				}
+
+				if (count($posCollector))
+				{
+					// Sort by pos. Easier to handle overlapping highlighter-spans
+					ksort($posCollector);
+					$cnt                = 0;
+					$lastHighlighterEnd = -1;
+
+					foreach ($posCollector as  $pos => $hlword)
+					{
+						$pos += $cnt * $highlighterLen;
+
+						/* Avoid overlapping/corrupted highlighter-spans
+						 * TODO $chkOverlap could be used to highlight remaining part
+						 * of searchword outside last highlighter-span.
+						 * At the moment no additional highlighter is set.*/
+						$chkOverlap = $pos - $lastHighlighterEnd;
+
+						if ($chkOverlap >= 0)
+						{
+							// Set highlighter around searchword
+							if ($mbString)
+							{
+								$hlwordLen = mb_strlen($hlword);
+								$row       = mb_substr($row, 0, $pos) . $hl1 . mb_substr($row, $pos, $hlwordLen) . $hl2 . mb_substr($row, $pos + $hlwordLen);
+							}
+							else
+							{
+								$hlwordLen = StringHelper::strlen($hlword);
+								$row = StringHelper::substr($row, 0, $pos) . $hl1 . StringHelper::substr($row, $pos, StringHelper::strlen($hlword))
+									. $hl2 . StringHelper::substr($row, $pos + StringHelper::strlen($hlword));
+							}
+
+							$cnt++;
+							$lastHighlighterEnd = $pos + $hlwordLen + $highlighterLen;
 						}
 					}
 				}

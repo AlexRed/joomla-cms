@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  Template.hathor
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
@@ -12,9 +12,10 @@ defined('_JEXEC') or die;
 JHtml::_('behavior.multiselect');
 JHtml::_('bootstrap.tooltip');
 
-$listOrder	= $this->escape($this->state->get('list.ordering'));
-$listDirn	= $this->escape($this->state->get('list.direction'));
+$listOrder = $this->escape($this->state->get('list.ordering'));
+$listDirn  = $this->escape($this->state->get('list.direction'));
 ?>
+
 <div id="installer-manage">
 <form action="<?php echo JRoute::_('index.php?option=com_installer&view=manage');?>" method="post" name="adminForm" id="adminForm">
 <?php if (!empty( $this->sidebar)) : ?>
@@ -66,6 +67,9 @@ $listDirn	= $this->escape($this->state->get('list.direction'));
 				<th>
 					<?php echo JHtml::_('grid.sort', 'COM_INSTALLER_HEADING_FOLDER', 'folder', $listDirn, $listOrder); ?>
 				</th>
+				<th>
+					<?php echo JHtml::_('grid.sort', 'COM_INSTALLER_HEADING_PACKAGE_ID', 'package_id', $listDirn, $listOrder); ?>
+				</th>
 				<th class="nowrap id-col">
 					<?php echo JHtml::_('grid.sort', 'COM_INSTALLER_HEADING_ID', 'extension_id', $listDirn, $listOrder); ?>
 				</th>
@@ -109,6 +113,9 @@ $listDirn	= $this->escape($this->state->get('list.direction'));
 				</td>
 				<td class="center">
 					<?php echo @$item->folder != '' ? $item->folder : JText::_('COM_INSTALLER_TYPE_NONAPPLICABLE'); ?>
+				</td>
+				<td class="center">
+					<?php echo $item->package_id ?: JText::_('COM_INSTALLER_TYPE_NONAPPLICABLE'); ?>
 				</td>
 				<td>
 					<?php echo $item->extension_id ?>

@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -13,10 +13,8 @@ defined('JPATH_PLATFORM') or die;
  * Form Field class for the Joomla Platform.
  * Provides a one line text box with up-down handles to set a number in the field.
  *
- * @package     Joomla.Platform
- * @subpackage  Form
- * @link        http://www.w3.org/TR/html-markup/input.text.html#input.text
- * @since       3.2
+ * @link   http://www.w3.org/TR/html-markup/input.text.html#input.text
+ * @since  3.2
  */
 class JFormFieldNumber extends JFormField
 {
@@ -34,7 +32,7 @@ class JFormFieldNumber extends JFormField
 	 * @var    float
 	 * @since  3.2
 	 */
-	protected $max = 0;
+	protected $max = null;
 
 	/**
 	 * The allowable minimum value of the field.
@@ -42,7 +40,7 @@ class JFormFieldNumber extends JFormField
 	 * @var    float
 	 * @since  3.2
 	 */
-	protected $min = 0;
+	protected $min = null;
 
 	/**
 	 * The step by which value of the field increased or decreased.
@@ -51,6 +49,14 @@ class JFormFieldNumber extends JFormField
 	 * @since  3.2
 	 */
 	protected $step = 0;
+
+	/**
+	 * Name of the layout being used to render the field
+	 *
+	 * @var    string
+	 * @since  3.7
+	 */
+	protected $layout = 'joomla.form.field.number';
 
 	/**
 	 * Method to get certain otherwise inaccessible properties from the form field object.
@@ -102,7 +108,7 @@ class JFormFieldNumber extends JFormField
 	/**
 	 * Method to attach a JForm object to the field.
 	 *
-	 * @param   SimpleXMLElement  $element  The SimpleXMLElement object representing the <field /> tag for the form field object.
+	 * @param   SimpleXMLElement  $element  The SimpleXMLElement object representing the `<field>` tag for the form field object.
 	 * @param   mixed             $value    The form field value to validate.
 	 * @param   string            $group    The field name group control value. This acts as as an array container for the field.
 	 *                                      For example if the field has name="foo" and the group value is set to "bar" then the
@@ -119,8 +125,9 @@ class JFormFieldNumber extends JFormField
 
 		if ($return)
 		{
-			$this->max  = isset($this->element['max']) ? (float) $this->element['max'] : 100;
-			$this->min  = isset($this->element['min']) ? (float) $this->element['min'] : 0;
+			// It is better not to force any default limits if none is specified
+			$this->max  = isset($this->element['max']) ? (float) $this->element['max'] : null;
+			$this->min  = isset($this->element['min']) ? (float) $this->element['min'] : null;
 			$this->step = isset($this->element['step']) ? (float) $this->element['step'] : 1;
 		}
 
@@ -136,37 +143,29 @@ class JFormFieldNumber extends JFormField
 	 */
 	protected function getInput()
 	{
-		// Translate placeholder text
-		$hint = $this->translateHint ? JText::_($this->hint) : $this->hint;
+		// Trim the trailing line in the layout file
+		return rtrim($this->getRenderer($this->layout)->render($this->getLayoutData()), PHP_EOL);
+	}
+
+	/**
+	 * Method to get the data to be passed to the layout for rendering.
+	 *
+	 * @return  array
+	 *
+	 * @since 3.7
+	 */
+	protected function getLayoutData()
+	{
+		$data = parent::getLayoutData();
 
 		// Initialize some field attributes.
-		$size     = !empty($this->size) ? ' size="' . $this->size . '"' : '';
-		$max      = !empty($this->max) ? ' max="' . $this->max . '"' : '';
-		$min      = !empty($this->min) ? ' min="' . $this->min . '"' : '';
-		$step     = !empty($this->step) ? ' step="' . $this->step . '"' : '';
-		$class    = !empty($this->class) ? ' class="' . $this->class . '"' : '';
-		$readonly = $this->readonly ? ' readonly' : '';
-		$disabled = $this->disabled ? ' disabled' : '';
-		$required = $this->required ? ' required aria-required="true"' : '';
-		$hint     = $hint ? ' placeholder="' . $hint . '"' : '';
+		$extraData = array(
+			'max'   => $this->max,
+			'min'   => $this->min,
+			'step'  => $this->step,
+			'value' => $this->value,
+		);
 
-		$autocomplete = !$this->autocomplete ? ' autocomplete="off"' : ' autocomplete="' . $this->autocomplete . '"';
-		$autocomplete = $autocomplete == ' autocomplete="on"' ? '' : $autocomplete;
-
-		$autofocus = $this->autofocus ? ' autofocus' : '';
-
-		$value = (float) $this->value;
-		$value = empty($value) ? $this->min : $value;
-
-		// Initialize JavaScript field attributes.
-		$onchange = !empty($this->onchange) ? ' onchange="' . $this->onchange . '"' : '';
-
-		// Including fallback code for HTML5 non supported browsers.
-		JHtml::_('jquery.framework');
-		JHtml::_('script', 'system/html5fallback.js', false, true);
-
-		return '<input type="number" name="' . $this->name . '" id="' . $this->id . '"' . ' value="'
-			. htmlspecialchars($value, ENT_COMPAT, 'UTF-8') . '"' . $class . $size . $disabled . $readonly
-			. $hint . $onchange . $max . $step . $min . $required . $autocomplete . $autofocus . ' />';
+		return array_merge($data, $extraData);
 	}
 }

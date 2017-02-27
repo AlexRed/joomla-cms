@@ -3,7 +3,7 @@
  * @package	    Joomla.UnitTest
  * @subpackage  Toolbar
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license	    GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -49,13 +49,18 @@ class JToolbarButtonStandardTest extends PHPUnit_Framework_TestCase
 	}
 
 	/**
-	 * @todo   Implement testFetchButton().
+	 * Overrides the parent tearDown method.
+	 *
+	 * @return  void
+	 *
+	 * @see     PHPUnit_Framework_TestCase::tearDown()
+	 * @since   3.6
 	 */
-	public function testFetchButton()
+	protected function tearDown()
 	{
-		// Remove the following lines when you implement this test.
-		$this->markTestIncomplete('This test has not been implemented yet.'
-		);
+		unset($this->toolbar);
+		unset($this->object);
+		parent::tearDown();
 	}
 
 	/**

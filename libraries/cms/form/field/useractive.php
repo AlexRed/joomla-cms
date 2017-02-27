@@ -3,20 +3,18 @@
  * @package     Joomla.Libraries
  * @subpackage  Form
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-defined('JPATH_BASE') or die;
+defined('JPATH_PLATFORM') or die;
 
 JFormHelper::loadFieldClass('predefinedlist');
 
 /**
  * Field to show a list of available user active statuses
  *
- * @package     Joomla.Libraries
- * @subpackage  Form
- * @since       3.2
+ * @since  3.2
  */
 class JFormFieldUserActive extends JFormFieldPredefinedList
 {
@@ -36,7 +34,7 @@ class JFormFieldUserActive extends JFormFieldPredefinedList
 	 */
 	protected $predefinedOptions = array(
 		'0'  => 'COM_USERS_ACTIVATED',
-		'1'  => 'COM_USERS_UNACTIVATED'
+		'1'  => 'COM_USERS_UNACTIVATED',
 	);
 
 	/**

@@ -3,19 +3,17 @@
  * @package     Joomla.Libraries
  * @subpackage  Helper
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-defined('_JEXEC') or die;
+defined('JPATH_PLATFORM') or die;
 
 /**
  * Helper for standard content style extensions.
  * This class mainly simplifies static helper methods often repeated in individual components
  *
- * @package     Joomla.Libraries
- * @subpackage  Helper
- * @since       3.1
+ * @since  3.1
  */
 class JHelperContent
 {
@@ -42,12 +40,16 @@ class JHelperContent
 	 * @return  JObject
 	 *
 	 * @since   3.1
+	 * @deprecated  3.2  Use JHelperContent::getActions() instead
 	 */
-	public static function getActions($categoryId = 0, $id = 0, $assetName = '')
+	public static function _getActions($categoryId = 0, $id = 0, $assetName = '')
 	{
+		// Log usage of deprecated function
+		JLog::add(__METHOD__ . '() is deprecated, use JHelperContent::getActions() with new arguments order instead.', JLog::WARNING, 'deprecated');
+
 		// Reverted a change for version 2.5.6
-		$user	= JFactory::getUser();
-		$result	= new JObject;
+		$user   = JFactory::getUser();
+		$result = new JObject;
 
 		$path = JPATH_ADMINISTRATOR . '/components/' . $assetName . '/access.xml';
 
@@ -68,6 +70,59 @@ class JHelperContent
 		}
 
 		$actions = JAccess::getActionsFromFile($path, "/access/section[@name='" . $section . "']/");
+
+		foreach ($actions as $action)
+		{
+			$result->set($action->name, $user->authorise($action->name, $assetName));
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Gets a list of the actions that can be performed.
+	 *
+	 * @param   string   $component  The component name.
+	 * @param   string   $section    The access section name.
+	 * @param   integer  $id         The item ID.
+	 *
+	 * @return  JObject
+	 *
+	 * @since   3.2
+	 */
+	public static function getActions($component = '', $section = '', $id = 0)
+	{
+		// Check for deprecated arguments order
+		if (is_int($component) || is_null($component))
+		{
+			$result = self::_getActions($component, $section, $id);
+
+			return $result;
+		}
+
+		$assetName = $component;
+
+		if ($section && $id)
+		{
+			$assetName .=  '.' . $section . '.' . (int) $id;
+		}
+
+		$result = new JObject;
+
+		$user = JFactory::getUser();
+
+		$actions = JAccess::getActionsFromFile(
+			JPATH_ADMINISTRATOR . '/components/' . $component . '/access.xml', '/access/section[@name="component"]/'
+		);
+
+		if ($actions === false)
+		{
+			JLog::add(
+				JText::sprintf('JLIB_ERROR_COMPONENTS_ACL_CONFIGURATION_FILE_MISSING_OR_IMPROPERLY_STRUCTURED', $component), JLog::ERROR, 'jerror'
+			);
+
+			return $result;
+		}
 
 		foreach ($actions as $action)
 		{

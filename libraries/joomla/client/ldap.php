@@ -3,7 +3,7 @@
  * @package     Joomla.Platform
  * @subpackage  Client
  *
- * @copyright   Copyright (C) 2005 - 2013 Open Source Matters, Inc. All rights reserved.
+ * @copyright   Copyright (C) 2005 - 2017 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE
  */
 
@@ -12,9 +12,7 @@ defined('JPATH_PLATFORM') or die;
 /**
  * LDAP client class
  *
- * @package     Joomla.Platform
- * @subpackage  Client
- * @since       12.1
+ * @since  12.1
  */
 class JClientLdap
 {
@@ -79,7 +77,6 @@ class JClientLdap
 	public $username = null;
 
 	/**
-	 *
 	 * @var    string  Password to connect to server
 	 * @since  12.1
 	 */
@@ -92,7 +89,6 @@ class JClientLdap
 	private $_resource = null;
 
 	/**
-	 *
 	 * @var    string  Current DN
 	 * @since  12.1
 	 */
@@ -195,7 +191,7 @@ class JClientLdap
 	 *
 	 * @since   12.1
 	 */
-	public function setDN($username, $nosub = 0)
+	public function setDn($username, $nosub = 0)
 	{
 		if ($this->users_dn == '' || $nosub)
 		{
@@ -218,7 +214,7 @@ class JClientLdap
 	 *
 	 * @since   12.1
 	 */
-	public function getDN()
+	public function getDn()
 	{
 		return $this->_dn;
 	}
@@ -260,8 +256,8 @@ class JClientLdap
 			$password = $this->password;
 		}
 
-		$this->setDN($username, $nosub);
-		$bindResult = @ldap_bind($this->_resource, $this->getDN(), $password);
+		$this->setDn($username, $nosub);
+		$bindResult = @ldap_bind($this->_resource, $this->getDn(), $password);
 
 		return $bindResult;
 	}
@@ -554,8 +550,8 @@ class JClientLdap
 	 *
 	 * Please keep this document block and author attribution in place.
 	 *
-	 * Novell Docs, see: http://developer.novell.com/ndk/doc/ndslib/schm_enu/data/sdk5624.html#sdk5624
-	 * for Address types: http://developer.novell.com/ndk/doc/ndslib/index.html?page=/ndk/doc/ndslib/schm_enu/data/sdk4170.html
+	 * Novell Docs, see: https://developer.novell.com/ndk/doc/ndslib/schm_enu/data/sdk5624.html#sdk5624
+	 * for Address types: https://developer.novell.com/ndk/doc/ndslib/index.html?page=/ndk/doc/ndslib/schm_enu/data/sdk4170.html
 	 * LDAP Format, String:
 	 * taggedData = uint32String "#" octetstring
 	 * byte 0 = uint32String = Address Type: 0= IPX Address; 1 = IP Address
@@ -575,7 +571,7 @@ class JClientLdap
 	 */
 	public static function LDAPNetAddr($networkaddress)
 	{
-		$addr = "";
+		$addr = '';
 		$addrtype = (int) substr($networkaddress, 0, 1);
 
 		// Throw away bytes 0 and 1 which should be the addrtype and the "#" separator
@@ -602,7 +598,8 @@ class JClientLdap
 			'TCP6',
 			'Reserved (12)',
 			'URL',
-			'Count');
+			'Count',
+		);
 		$len = strlen($networkaddress);
 
 		if ($len > 0)
@@ -615,9 +612,10 @@ class JClientLdap
 				if (($addrtype == 1) || ($addrtype == 8) || ($addrtype = 9))
 				{
 					// Dot separate IP addresses...
-					$addr .= ".";
+					$addr .= '.';
 				}
 			}
+
 			if (($addrtype == 1) || ($addrtype == 8) || ($addrtype = 9))
 			{
 				// Strip last period from end of $addr
@@ -628,6 +626,7 @@ class JClientLdap
 		{
 			$addr .= JText::_('JLIB_CLIENT_ERROR_LDAP_ADDRESS_NOT_AVAILABLE');
 		}
+
 		return array('protocol' => $addrtypes[$addrtype], 'address' => $addr);
 	}
 
@@ -661,8 +660,6 @@ class JClientLdap
 /**
  * Deprecated class placeholder. You should use JClientLdap instead.
  *
- * @package     Joomla.Platform
- * @subpackage  Client
  * @since       11.1
  * @deprecated  12.3 (Platform) & 4.0 (CMS)
  */
